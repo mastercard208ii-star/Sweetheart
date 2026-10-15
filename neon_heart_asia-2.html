@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Heart</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; min-height: 100%; background: #020106; }
+  body { color: #ff244f; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hud { position: fixed; inset: 0; pointer-events: none; padding: 22px; display: flex; flex-direction: column; justify-content: space-between; text-shadow: 0 0 12px #ff1744; }
+  .top { font-size: 11px; letter-spacing: 2px; opacity: .82; }
+  .bottom { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; letter-spacing: 1px; opacity: .72; }
+  .name { position: fixed; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; z-index: 3; color: #fff0f4; font-weight: 700; font-size: clamp(26px, 8vw, 48px); letter-spacing: .12em; text-shadow: 0 0 8px #fff, 0 0 18px #ff1744, 0 0 38px #ff003c, 0 0 70px #ff003c; pointer-events: none; animation: namePulse 1s infinite ease-in-out; }
+  @keyframes namePulse { 0%,100% { transform: translateY(-50%) scale(1); } 50% { transform: translateY(-50%) scale(1.06); } }
+  .title { position: fixed; left: 0; right: 0; top: 8%; text-align: center; color: #ff5c79; font-size: clamp(10px, 2.6vw, 14px); letter-spacing: .35em; text-transform: uppercase; text-shadow: 0 0 18px #ff1744; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="title">heart.exe — running</div>
+<div class="name">Asia</div>
+<div class="hud">
+  <div class="top">SYSTEM // VISUAL CORE<br>RENDER: ACTIVE</div>
+  <div class="bottom"><span>LOVE_PROTOCOL [ON]</span><span id="fps">NEON HEART</span></div>
+</div>
+<script>
+(() => {
+ const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+ let w, h, dpr, particles = [], t0 = performance.now();
+ function resize(){
+   dpr = Math.min(window.devicePixelRatio || 1, 2);
+   w = innerWidth; h = innerHeight;
+   canvas.width = Math.round(w*dpr); canvas.height = Math.round(h*dpr);
+   ctx.setTransform(dpr,0,0,dpr,0,0);
+   makeParticles();
+ }
+ function heartPoint(a, scale=1) {
+   const x = 16*Math.pow(Math.sin(a),3);
+   const y = -(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a));
+   return {x:x*scale, y:y*scale};
+ }
+ function makeParticles(){
+   particles=[];
+   const count = Math.min(1700, Math.max(550, Math.floor(w*h/650)));
+   const scale = Math.min(w*0.022, h*0.018, 11);
+   for(let i=0;i<count;i++){
+     const a=Math.random()*Math.PI*2, p=heartPoint(a,scale);
+     const fill=Math.random()<.66;
+     let x,y;
+     if(fill){
+       const r=Math.sqrt(Math.random());
+       x=p.x*r; y=p.y*r;
+     } else {
+       x=p.x+(Math.random()-.5)*12;
+       y=p.y+(Math.random()-.5)*12;
+     }
+     particles.push({x,y,phase:Math.random()*Math.PI*2,size:Math.random()*1.7+.35, speed:Math.random()*1.6+.4, fill});
+   }
+ }
+ function draw(now){
+   const time=now/1000, pulse=1+0.045*Math.sin(time*3.2);
+   ctx.clearRect(0,0,w,h);
+   const bg=ctx.createRadialGradient(w/2,h*.51,5,w/2,h*.51,Math.max(w,h)*.72);
+   bg.addColorStop(0,'#16000a'); bg.addColorStop(.48,'#08020b'); bg.addColorStop(1,'#020106');
+   ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
+   // Subtle falling code-like sparks
+   ctx.font='10px monospace';
+   for(let i=0;i<Math.floor(w/22);i++){
+     const x=i*22+Math.sin(i*9)*5, y=(time*(18+(i%5)*7)+i*83)%(h+40)-20;
+     ctx.fillStyle=`rgba(255,25,70,${.04+((i%4)*.018)})`;
+     ctx.fillText(i%2?'01':'10',x,y);
+   }
+   const scale=Math.min(w*.022,h*.018,11)*pulse;
+   const cx=w/2, cy=h*.51;
+   ctx.save(); ctx.translate(cx,cy);
+   // Glowing heart silhouette
+   ctx.beginPath();
+   for(let a=0;a<=Math.PI*2+.02;a+=.02){
+     const p=heartPoint(a,scale);
+     if(a===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+   }
+   ctx.closePath();
+   ctx.shadowColor='#ff003c'; ctx.shadowBlur=32;
+   ctx.fillStyle='rgba(255,0,55,.07)'; ctx.fill();
+   ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,30,75,.8)'; ctx.stroke();
+   // Particle heart
+   for(const p of particles){
+     const flicker=.42+.58*(.5+.5*Math.sin(time*p.speed+p.phase));
+     ctx.beginPath();
+     ctx.arc(p.x*pulse,p.y*pulse,p.size,0,Math.PI*2);
+     ctx.fillStyle=p.fill?`rgba(255,${Math.floor(22+55*flicker)},${Math.floor(55+65*flicker)},${.35+.65*flicker})`:`rgba(255,30,65,${.25+.7*flicker})`;
+     ctx.shadowColor='#ff003c'; ctx.shadowBlur=3+p.size*4;
+     ctx.fill();
+   }
+   // Bright central pulse
+   ctx.shadowBlur=45; ctx.shadowColor='#ff1744';
+   ctx.fillStyle=`rgba(255,35,75,${.06+.06*(1+Math.sin(time*3))})`;
+   ctx.beginPath(); ctx.ellipse(0,0,scale*13,scale*11,0,0,Math.PI*2); ctx.fill();
+   ctx.restore();
+   requestAnimationFrame(draw);
+ }
+ addEventListener('resize',resize); resize(); requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
